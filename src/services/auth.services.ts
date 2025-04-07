@@ -1,70 +1,46 @@
+import bcrypt from 'bcrypt';
+import { AppError } from '../errors/app.error';
 import UserRepository from '../repositories/user.repository';
-import bcrypt from "bcrypt"
 
-interface validateUniqueUserCredentialsProps {
+export interface UserProps {
     username: string;
+    firstname: string;
+    lastname?: string | undefined;
     email: string;
+    password: string;
 }
 
-export interface createUserProps {
-    username: string,
-    firstname: string,
-    lastname: string | undefined,
-    email: string,
-    password: string
-}
+type PromiseUserProps = {
+    createdAt: Date;
+    updatedAt: Date;
+};
 
 const AuthService = {
-    validateUniqueUserCredentials: async ({
-        username,
-        email,
-    }: validateUniqueUserCredentialsProps): Promise<void | false> => {
-        try {
-            const existsEmail = await UserRepository
-            .findByEmail(email);
+    createUser: async (user: UserProps): Promise<PromiseUserProps> => {
+        const hashedPassword = await bcrypt.hash(user.password, 10);
+        const userWithHashedPassword = { ...user, password: hashedPassword };
 
-            const existsUsername = await UserRepository
-            .findByUsername(username);
+        const [existsEmail, existsUsername] = await Promise.all([
+            UserRepository.findByEmail(user.email),
+            UserRepository.findByUsername(user.username),
+        ]);
 
-            if(existsEmail) {
-                throw new Error('Este email já existe');
-            }
-
-            if(existsUsername) {
-                throw new Error('Este nome de usuário já existe')
-            }
-
-            return false;
-        } catch(err){
-            console.log(err);
+        if (existsEmail) {
+            throw new AppError('Este email já está cadastrado', 400);
         }
+
+        if (existsUsername) {
+            throw new AppError('Já possuí um usuário com este nome de usuário', 400);
+        }
+
+        const newUser = await UserRepository.createUser(userWithHashedPassword);
+
+        if (!newUser) {
+            throw new AppError('Houve algum erro ao tentar criar sua conta. Tente novamente mais tarde!', 500);
+        }
+
+        return newUser;
     },
-    createUser: async({
-        username,
-        firstname,
-        lastname,
-        email,
-        password
-    }:createUserProps) => {
-        const user = {
-            username,
-            firstname,
-            lastname,
-            email,
-            password
-        }
-        user.password = bcrypt.hashSync(password, 10);
-        const newUser = await UserRepository.createUser(user)
-        .then(newUser => {
-            if(newUser){
-                return newUser
-            }
-        });
-
-        if(!newUser) {
-            throw new Error('Houve algum erro na criação da sua conta. Tente mais tarde!')
-        }
-    }
 };
 
 export default AuthService;
