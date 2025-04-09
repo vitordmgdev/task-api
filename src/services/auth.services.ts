@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { AppError } from '../errors/app.error';
 import UserRepository from '../repositories/user.repository';
+import jwt from "jsonwebtoken";
 
 export interface UserProps {
     username: string;
@@ -10,13 +11,19 @@ export interface UserProps {
     password: string;
 }
 
-type PromiseUserProps = {
+type PromiseUserType = {
+    id: string;
+    username: string;
+    firstname: string;
+    lastname: string | null;
+    email: string;
+    password: string;
     createdAt: Date;
     updatedAt: Date;
 };
 
 const AuthService = {
-    createUser: async (user: UserProps): Promise<PromiseUserProps> => {
+    createUser: async (user: UserProps): Promise<PromiseUserType> => {
         const hashedPassword = await bcrypt.hash(user.password, 10);
         const userWithHashedPassword = { ...user, password: hashedPassword };
 
@@ -25,21 +32,40 @@ const AuthService = {
             UserRepository.findByUsername(user.username),
         ]);
 
-        if (existsEmail) {
-            throw new AppError('Este email já está cadastrado', 400);
+        if (existsUsername) {
+            throw new AppError(
+                'Já existe um usuário com este nome de usuário!',
+                400,
+            );
         }
 
-        if (existsUsername) {
-            throw new AppError('Já possuí um usuário com este nome de usuário', 400);
+        if (existsEmail) {
+            throw new AppError('Este email já está cadastrado!', 400);
         }
 
         const newUser = await UserRepository.createUser(userWithHashedPassword);
 
-        if (!newUser) {
-            throw new AppError('Houve algum erro ao tentar criar sua conta. Tente novamente mais tarde!', 500);
+        return newUser;
+    },
+    login: async (email: string, password: string) => {
+        const user = await UserRepository.findByEmail(email);
+        if (!user) {
+            throw new AppError('Não existe usuário cadastrado com este email!', 400);
         }
 
-        return newUser;
+        const isSamePassword = await bcrypt.compare(password, user.password);
+
+        if (!isSamePassword) {
+            throw new AppError('As senhas não correspondem!', 400);
+        }
+
+        const token = jwt.sign({
+            id: user.id,
+            firstname: user.firstname,
+            lastname: user.lastname
+        }, process.env.TOKEN_KEY!, { expiresIn: '1h' });
+
+        return token;
     },
 };
 

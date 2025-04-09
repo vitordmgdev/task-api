@@ -1,26 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '../lib/prisma';
 import { UserProps } from '../services/auth.services';
 
 const UserRepository = {
     findByEmail: async (email: string) => {
-        const user = await prisma.user.findUnique({
-            where: {
-                email: email,
-            },
-        });
-
-        return user;
+        return prisma.user.findUnique({ where: { email: email }, });
     },
     findByUsername: async (username: string) => {
-        const user = await prisma.user.findUnique({
-            where: {
-                username: username,
-            },
-        });
-        return user;
+        return prisma.user.findUnique({ where: { username: username }, });
     },
     createUser: async (user: UserProps) => {
-        const newUser = await prisma.user.create({
+        return prisma.user.create({
             data: {
                 username: user.username,
                 firstname: user.firstname,
@@ -29,7 +19,6 @@ const UserRepository = {
                 password: user.password,
             },
         });
-        return newUser;
     },
 };
 
