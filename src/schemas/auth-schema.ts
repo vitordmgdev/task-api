@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const RegisterInput = z.object({
+export const registerSchema = z.object({
   username: z
   .string()
   .nonempty('Nome de usuário é obrigatório.')
@@ -19,11 +19,18 @@ export const RegisterInput = z.object({
 
   email: z
   .string()
+  .nonempty('Email é obrigatório.')
   .email('Email inválido.'),
 
   password: z
   .string()
+  .nonempty('Senha é obrigatória')
   .min(6, 'Senha deve conter no mínimo 6 caracteres.')
   .max(20, 'Senha deve conter no máximo 20 caracteres.')
 
-}).strict();
+}).strip();
+
+export const loginSchema = registerSchema.pick({
+  email: true,
+  password: true
+}).strip();
